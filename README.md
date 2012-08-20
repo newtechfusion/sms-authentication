@@ -1,4 +1,4 @@
-two-factor-authentication
+sms-authentication
 ============================
 
 Credits
