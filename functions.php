@@ -48,3 +48,5 @@ function user_login($username, $submitted) {
 
     return $message;
 }
+
+?>

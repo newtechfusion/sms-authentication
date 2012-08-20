@@ -26,3 +26,5 @@ switch ($action) {
         echo 'do nothing';
 }
 header("Location: index.php?message=" . urlencode($message) . "&action=" . $action);
+
+?>
