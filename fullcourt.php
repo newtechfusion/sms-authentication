@@ -1,5 +1,7 @@
 <?php
-require_once 'HTTP/Request2.php';
+//require_once 'HTTP/Request2.php';
+require_once 'HTTP/Request.php';
+//require_once 'TinyHttp.php';
 
 
 class FullcourtError extends Exception { }
@@ -37,9 +39,23 @@ class RestAPI {
 
     private function request($method, $path, $params=array()) {
         $url = $this->api.rtrim($path, '/');
+        // For don't use PUT method by HTTP_Reuest2
+        if (!strcmp($method, "PUT")) {
+            $uri = "https://".$this->auth_id.":".$this->auth_token."@voip.fullcourt.co";
+            $req = new TinyHttp($uri);
+            $r = $req->put("/".$this->version."/Accounts/".$this->auth_id.rtrim($path, '/'),array('Content-Type' => 'application/x-www-form-urlencoded'),http_build_query($params));
+            list($status, $headers, $body) = $r;
+            $response = json_decode($body, true);
+            return array("status" => $status, "response" => $response);
+        }
+
         if (!strcmp($method, "POST")) {
-            $req = new HTTP_Request2($url, HTTP_Request2::METHOD_POST);
-            $req->setHeader('Content-type: application/x-www-form-urlencoded');
+            $options = array('method' => HTTP_REQUEST_METHOD_POST, 'timeout' => 30, 'user' => $this->auth_id, 'pass' => $this->auth_token);
+            $req =& new HTTP_Request($url, $options);
+            //$req = new HTTP_Request2($url, HTTP_Request2::METHOD_POST);
+            $req->addHeader("Content-type", 'application/x-www-form-urlencoded');
+            $req->addHeader('Connection', 'close');
+            $req->addHeader('User-Agent', 'PHPfullcourt');
             if ($params) {
                 $req->setBody(http_build_query($params));
             }
@@ -51,17 +67,20 @@ class RestAPI {
             $req = new HTTP_Request2($url, HTTP_Request2::METHOD_DELETE);
             $url = $req->getUrl();
             $url->setQueryVariables($params);
-        }
-        $req->setAdapter('curl');
+        } 
+        /*$req->setAdapter('curl');
         $req->setConfig(array('timeout' => 30));
         $req->setAuth($this->auth_id, $this->auth_token, HTTP_Request2::AUTH_BASIC);
         $req->setHeader(array(
             'Connection' => 'close',
             'User-Agent' => 'PHPfullcourt',
-        ));
-        $r = $req->send();
-        $status = $r->getStatus();
-        $body = $r->getbody();
+        ));*/
+        $r = $req->sendRequest();
+        //$r = $req->send();
+        $status = $r;
+        //$status = $r->getStatus();
+        $body = $req->getResponseBody();
+        //$body = $r->getbody();
         $response = json_decode($body, true);
         return array("status" => $status, "response" => $response);
     }
@@ -85,7 +104,60 @@ class RestAPI {
         return $this->request('POST', '/Message', $params);
     }
 
+    ## Applications ##
+    # Get List all applications that are registered to use PhoneXML.
+    public function get_applications() {
+        return $this->request('GET', '/Applications');
+    }
 
+    public function create_application($params=array()) {
+        return $this->request('POST', '/Applications/', $params);
+    }
+
+    public function get_application($params=array()) {
+        $app_id = $this->pop($params, "app_id");
+        return $this->request('GET', '/Applications/'.$app_id, $params);
+    }
+
+    public function modify_application($params=array()) {
+        $app_id = $this->pop($params, "app_id");
+        return $this->request('PUT', '/Applications/'.$app_id, $params);
+    }
+
+    public function delete_application($params=array()) {
+        $app_id = $this->pop($params, "app_id");
+        return $this->request('DELETE', '/Applications/'.$app_id.'/', $params);
+    }
+
+    ## AvailableNumbers ##
+    public function search_numbers($params=array()) {
+        $isocountry = $this->pop($params, "isocountry");
+        return $this->request('GET', '/AvailablePhoneNumbers/'.$isocountry);
+    }
+
+    ## IncomingPhoneNumbers ##
+    public function get_numbers() {
+        return $this->request('GET', '/IncomingPhoneNumbers');
+    }
+
+    public function buy_number($params=array()) {
+        return $this->request('POST', '/IncomingPhoneNumbers', $params);
+    }
+
+    public function get_number($params=array()) {
+        $pn_id = $this->pop($params, "pn_id");
+        return $this->request('GET', '/IncomingPhoneNumbers/'.$pn_id.'/', $params);
+    }
+
+    public function modify_application_number($params=array()) {
+        $pn_id = $this->pop($params, "pn_id");
+        return $this->request('PUT', '/IncomingPhoneNumbers/'.$pn_id.'/', $params);
+    }
+
+    public function delete_number($params=array()) {
+        $pn_id = $this->pop($params, "pn_id");
+        return $this->request('DELETE', '/IncomingPhoneNumbers/'.$pn_id.'/', $params);
+    }
 }
 
 
